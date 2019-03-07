@@ -14,14 +14,14 @@ class Agent():
         self.fails = []
         self.goals = []
         self.movment_cost = -1
-        self.action = [0,1,2,3,4,5,6,7,8]
+        self.action = [0,1,2,3]
         self.num_actions = len(self.action)
         self.onland = 0#sm.sims[-1].val('LandEstimation','OnLand')
         self.terminal = 0
-        self.nxtpos = (0.0,0.0) #next position
+        self.nxtpos = (0.0,0.0) #agent next, or next,  position
         self.nxtpossat = []
         self.pos = (0.0,0.0) #current position
-        self.chosen_pos = (0.0,0.0)
+        self.chosen_pos = (0.0,0.0) #agent previous pos
         self.fakepos = (2.0,2.0)
         self.ori = () #current orientation
         self.reward = 0 #reward after finishing a move
@@ -30,12 +30,13 @@ class Agent():
         self.potential_waypoints = []
         self.x_pos = 0
         self.y_pos = 0
-        self.number = 50 #changed from 50 #changed from 20
+        self.number = 200 #changed from 50 #changed from 20
         self.heading = 0
         self.heading_pos = 0
         self. heading_state = []
-        self.R = 50
-        self.startpos = (-1501., 1499.)
+        self.R = 100
+        self.speed = 0
+        self.startpos = (-1400., 1400.)
 #    def get_nxtsat(self):
 #        for n in range(5):
 #            for m in range(5):
@@ -57,33 +58,61 @@ class Agent():
 
     def turn_right(self):
         #make the agent turn right
-        digitwin.sims[0].val('manualControl', 'UManual',0)
+        self.speed= 0.
         self.heading_pos = self.heading + 0.174532925
-        digitwin.sims[0].step(10)  
+        self.get_reward()
             
     def turn_left(self):
         #make agent turn left
-        digitwin.sims[0].val('manualControl', 'UManual',0)
+        self.speed= 0.
         self.heading_pos = self.heading - 0.174532925
-        digitwin.sims[0].step(10)
+        self.get_reward()
             
     def move_forward(self):
         #make agent move forward
-        while self.chosen_pos != self.nxtpos:
-            digitwin.sims[0].val('manualControl', 'UManual',0.5)
-            digitwin.sims[0].step(10)
-            self.checkPos()
-        digitwin.sims[0].val('manualControl', 'UManual',0)
-#
+        self.speed= 0.5
+        self.get_reward()
+
     def wait(self):
         #Enable agent to wait
-        self.nxtpos = self.chosen_pos
+        self.speed= 0.
         self.get_reward()
         
+
+
     def checkPos(self):
-        self.Cirlce = (self.nxtpos[0] - self.pos[0])**2 + (self.nxtpos[1] - self.pos[1])**2
-        if self.Cirlce <= self.R**2:
-            self.chosen_pos = self.nxtpos
+        self.nxtpos = self.chosen_pos
+        north = (self.chosen_pos[0], self.chosen_pos[1] + self.number)
+        south = (self.chosen_pos[0], self.chosen_pos[1] - self.number)
+        east = (self.chosen_pos[0] - self.number, self.chosen_pos[1])
+        west = (self.chosen_pos[0] + self.number, self.chosen_pos[1])
+        nortwest = (self.chosen_pos[0] + self.number, self.chosen_pos[1] + self.number)
+        norteast = (self.chosen_pos[0] - self.number, self.chosen_pos[1] + self.number)
+        southwest = (self.chosen_pos[0] + self.number, self.chosen_pos[1] - self.number)
+        southeast = (self.chosen_pos[0] - self.number, self.chosen_pos[1] - self.number)
+        if self.pos[0] <= north - 100 and self.pos[0] > + 100 and self.pos[1] <= north - 100 and self.pos[1] > + 100:
+            self.chosen_pos = north
+        elif self.pos[0] <= south - 100 and self.pos[0] > + 100 and self.pos[1] <= south - 100 and self.pos[1] > + 100:
+            self.chosen_pos = south
+        elif self.pos[0] <= east - 100 and self.pos[0] > + 100 and self.pos[1] <= east - 100 and self.pos[1] > + 100:
+            self.chosen_pos = east
+        elif self.pos[0] <= west - 100 and self.pos[0] > + 100 and self.pos[1] <= west - 100 and self.pos[1] > + 100:
+            self.chosen_pos = west
+        elif self.pos[0] <= nortwest - 100 and self.pos[0] > + 100 and self.pos[1] <= nortwest - 100 and self.pos[1] > + 100:
+            self.chosen_pos = nortwest
+        elif self.pos[0] <= norteast - 100 and self.pos[0] > + 100 and self.pos[1] <= norteast - 100 and self.pos[1] > + 100:
+            self.chosen_pos = norteast
+        elif self.pos[0] <= southwest - 100 and self.pos[0] > + 100 and self.pos[1] <= southwest - 100 and self.pos[1] > + 100:
+            self.chosen_pos = southwest
+        elif self.pos[0] <= southeast - 100 and self.pos[0] > + 100 and self.pos[1] <= southeast - 100 and self.pos[1] > + 100:
+            self.chosen_pos = southeast
+
+    
+    
+#    def checkPos(self):
+#        self.Cirlce = (self.nxtpos[0] - self.pos[0])**2 + (self.nxtpos[1] - self.pos[1])**2
+#        if self.Cirlce <= self.R**2:
+#            self.chosen_pos = self.nxtpos 
         
     def checkHeading(self):
         if self.heading - 5 < self.heading < self.heading + 5:
@@ -139,7 +168,7 @@ def create_states():
     stepy = 0
     agent.Q_table[(0,0)] = [0.0]*agent.num_actions
     agent.Q_table[(agent.startpos)] = [0.0]*agent.num_actions
-    minarea = -2000
+    minarea = -2400
     maxarea = 2000
     for x in range(minarea,maxarea):
         stepx += 1
@@ -169,21 +198,6 @@ def random_move():
     elif chance == 3:
         move = agent.action[3]
         agent.wait()
-#    elif chance == 4:
-#        move = agent.action[4]
-#        agent.north_west()
-#    elif chance == 5:
-#        move = agent.action[5]
-#        agent.north_east()
-#    elif chance == 6:
-#        move = agent.action[6]
-#        agent.south_west()
-#    elif chance == 7:
-#        move = agent.action[7]
-#        agent.south_east()
-#    elif chance == 8:
-#        move = agent.action[8]
-#        agent.wait()
     return move
 
 
@@ -202,21 +216,6 @@ def best_move():
         elif max(agent.Q_table[agent.chosen_pos]) == agent.Q_table[agent.chosen_pos][3]:
             move = agent.action[3]
             agent.wait()
-#        elif max(agent.Q_table[agent.chosen_pos]) == agent.Q_table[agent.chosen_pos][4]:
-#            move = agent.action[4]
-#            agent.north_west()
-#        elif max(agent.Q_table[agent.chosen_pos]) == agent.Q_table[agent.chosen_pos][5]:
-#            move = agent.action[5]
-#            agent.north_east()
-#        elif max(agent.Q_table[agent.chosen_pos]) == agent.Q_table[agent.chosen_pos][6]:
-#            move = agent.action[6]
-#            agent.south_west()
-#        elif max(agent.Q_table[agent.chosen_pos]) == agent.Q_table[agent.chosen_pos][7]:
-#            move = agent.action[7]
-#            agent.south_east()
-#        elif max(agent.Q_table[agent.chosen_pos]) == agent.Q_table[agent.chosen_pos][8]:
-#            move = agent.action[8]
-#            agent.wait()
         return move
 
 
