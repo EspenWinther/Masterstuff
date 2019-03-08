@@ -33,6 +33,7 @@ class Agent():
         self.y_pos = 0
         self.number = 200 #changed from 50 #changed from 20
         self.R = 100
+        self.goalReached = 0
 
     def get_reward(self):
         #Check where the vessel is and get the reward for that state
@@ -40,8 +41,7 @@ class Agent():
         if self.pos in goal.goal_states:
             self.terminal = 1
             self.reward = goal.goal_reward
-        elif self.onland == 1:
-            self.terminal = 1
+        elif self.terminal == 1:
             self.reward = neg_state.negativ_reward
         else:
             self.reward = ocean.ocean_reward
@@ -51,7 +51,10 @@ class Agent():
         if self.chosen_pos[0] != 2000:
             self.nxtpos = (self.chosen_pos[0] + self.number, self.chosen_pos[1])
             self.fakepos = (self.chosen_pos[0] + self.number*6, self.chosen_pos[1])
-        self.get_reward()
+#            self.get_reward()
+        else:
+            self.nxtpos = self.chosen_pos
+#            self.get_reward()
 
 
     def south(self):
@@ -59,73 +62,82 @@ class Agent():
         if self.chosen_pos[0] != -2000:
             self.nxtpos = (self.chosen_pos[0] - self.number, self.chosen_pos[1])
             self.fakepos = (self.chosen_pos[0] - self.number*6, self.chosen_pos[1])
-        self.get_reward()
-
+#            self.get_reward()
+        else:
+            self.nxtpos = self.chosen_pos
+#            self.get_reward()
 
     def west(self):
         #Eable agent to turn left
         if self.chosen_pos[1] != 2000:
             self.nxtpos = (self.chosen_pos[0], self.chosen_pos[1] + self.number)
             self.fakepos = (self.chosen_pos[0], self.chosen_pos[1] + self.number*6)
-        self.get_reward()
-
+#            self.get_reward()
+        else:
+            self.nxtpos = self.chosen_pos
+#            self.get_reward()
 
     def east(self):
         #enable agent to turn right
         if self.chosen_pos[1] != -2000:
             self.nxtpos = (self.chosen_pos[0], self.chosen_pos[1] - self.number)
             self.fakepos = (self.chosen_pos[0], self.chosen_pos[1] - self.number*6)
-        self.get_reward()
-
+#            self.get_reward()
+        else:
+            self.nxtpos = self.chosen_pos
+#            self.get_reward()
 
     def north_west(self):
         if self.chosen_pos[0] == 2000 or self.chosen_pos[1] == 2000:
-            self.get_reward()
+#            self.get_reward()
+            self.nxtpos = self.chosen_pos
+            
         else:
             self.nxtpos = (self.chosen_pos[0] + self.number, self.chosen_pos[1] + self.number)
             self.fakepos = (self.chosen_pos[0] + self.number*6, self.chosen_pos[1] + self.number*6)
-            self.get_reward()
+#            self.get_reward()
 
 
     def north_east(self):
         if self.chosen_pos[0] == 2000 or self.chosen_pos[1] == -2000:
-            self.get_reward()
+#            self.get_reward()
+            self.nxtpos = self.chosen_pos
         else:
             self.nxtpos = (self.chosen_pos[0] + self.number, self.chosen_pos[1] - self.number)
             self.fakepos = (self.chosen_pos[0] + self.number*6, self.chosen_pos[1] - self.number*6)
-            self.get_reward()
+#            self.get_reward()
 
 
     def south_west(self):
         if self.chosen_pos[0] == -2000 or self.chosen_pos[1] == 2000:
-            self.get_reward()
+#            self.get_reward()
+            self.nxtpos = self.chosen_pos
         else:
             self.nxtpos = (self.chosen_pos[0] - self.number, self.chosen_pos[1] + self.number)
             self.fakepos = (self.chosen_pos[0] - self.number*6, self.chosen_pos[1] + self.number*6)
-            self.get_reward()
+#            self.get_reward()
 
 
     def south_east(self):
         if self.chosen_pos[0] == -2000 or self.chosen_pos[1] == -2000:
-            self.get_reward()
+#            self.get_reward()
+            self.nxtpos = self.chosen_pos
         else:
             self.nxtpos = (self.chosen_pos[0] - self.number, self.chosen_pos[1] - self.number)
             self.fakepos = (self.chosen_pos[0] - self.number*6, self.chosen_pos[1] - self.number*6)
-            self.get_reward()
+#            self.get_reward()
 
 
     def wait(self):
         #Enable agent to wait
         self.nxtpos = self.chosen_pos
-        self.get_reward()
+#        self.get_reward()
         
     def checkPos(self):
         self.prevpos = self.chosen_pos
         self.Cirlce = (self.nxtpos[0] - self.pos[0])**2 + (self.nxtpos[1] - self.pos[1])**2
         if self.Cirlce <= self.R**2:
             self.chosen_pos = self.nxtpos
-        if self.onland == 1:
-            self.terminal = 1
 
 
 class Goal_state():
@@ -264,12 +276,13 @@ def bestVSrandom(epsilon):
 
 def update_Q(alpha, gamma):
 #    move = 0
-    prev_pos, prev_or, prew_reward = agent.prevpos, agent.ori, agent.reward
-    bestVSrandom(0.1)
+    agent.get_reward()
+    prev_pos = agent.prevpos
+#    bestVSrandom(0.1)
     agent.states.append(prev_pos)
-    print('move',agent.move)
-    print('prev_pos',prev_pos)
-    print('chosen pos',agent.chosen_pos)
+#    print('move',agent.move)
+#    print('prev_pos',prev_pos)
+#    print('chosen pos',agent.chosen_pos)
     if agent.terminal == 1:
         agent.Q_table[prev_pos][agent.move] = (1 - alpha) * agent.Q_table[prev_pos][agent.move] + alpha * agent.reward
     else:

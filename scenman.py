@@ -84,6 +84,7 @@ if __name__ == "__main__":
         log('LOAD_CS_CFG mode OFF !!!')
     if NON_CS_DEBUG:
         log('NON_CS_DEBUG mode ON !!!')
+#    digitwin.DigiTwin.setRealTimeMode()
 
     #Initialize vectors
     sims= []
@@ -187,7 +188,7 @@ if __name__ == "__main__":
     #print(Rl.agent.Q_table)
 
     reset('Hull', 'StateResetOn')
-    start_pos = (-1400.,1400.) #North(y) East(x)
+    start_pos = (-1400.,1400.) #East(x) North(y)
     sims[0].val('Hull', 'PosNED[0]', 1400.) #Y north
     sims[0].val('Hull', 'PosNED[1]', -1400.) #X east
     Rl.agent.chosen_pos = (start_pos)
@@ -210,6 +211,7 @@ if __name__ == "__main__":
 #    LOS.pid.setKp(400.)
     number = 0
     Rl.agent.onland = sims[0].val('LandEstimation', 'OnLand')
+
     
     while running == 1:
         print('While løkka')
@@ -218,51 +220,64 @@ if __name__ == "__main__":
             log("Locking sim" + str(sim_ix+1) + "/" + str(NUM_SIMULATORS))
 
         for epsiodes in range(num_episodes):
-            x_pos = list(sims[0].val('Hull', 'Eta[1]'))[1]
-            y_pos = list(sims[0].val('Hull', 'Eta[0]'))[0]
-            Rl.agent.pos = (float(x_pos),float(y_pos)) #(list(x_pos)[1], list(y_pos)[0])
-            Rl.agent.checkPos()
-            Rl.update_Q(0.9,0.8)
-            
-            reset('LOSGuidance','StateResetOn')
-            sims[0].val('LOSGuidance', 'iLosWaypointsX[0]',Rl.agent.nxtpos[1])
-            sims[0].val('LOSGuidance', 'iLosWaypointsY[0]',Rl.agent.nxtpos[0])
-            sims[0].val('LOSGuidance', 'iLosWaypointsX[1]',Rl.agent.fakepos[1])
-            sims[0].val('LOSGuidance', 'iLosWaypointsY[1]',Rl.agent.fakepos[0])
-#            sims[0].val('LOSGuidance', 'UpdateWaypoints',1)
-#            sims[0].val('LOSGuidance', 'UpdateWaypoints',0)
-#            sims[0].step(10)
-
-            sims[0].val('manualControl', 'UManual',0.3)
-            
-            while Rl.agent.nxtpos != Rl.agent.chosen_pos:
-                Rl.agent.onland = sims[0].val('LandEstimation','OnLand')
-                print('scenmanloop reward',Rl.agent.reward)
-
-                if Rl.agent.terminal == 1:
-                    sims[0].val('Hull', 'PosNED[0]', 1400.) #Y north
-                    sims[0].val('Hull', 'PosNED[1]', -1400.) #X east
-                    reset('Hull', 'StateResetOn')
-                    Rl.agent.terminal = 0
-                    
+            terminal = 0
+            Rl.agent.terminal = 0
+            Rl.agent.onland = sims[0].val('LandEstimation', 'OnLand')
+            while Rl.agent.terminal !=1:
+    #            Rl.update_Q(0.9,0.8)
+                Rl.bestVSrandom(0.1)
+    #resets if hits land, but has same position as target. this must be fixed!!!!!!!!!!!!!!!!
+                print('FORLOOP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
                 x_pos = list(sims[0].val('Hull', 'Eta[1]'))[1]
                 y_pos = list(sims[0].val('Hull', 'Eta[0]'))[0]
-                Rl.agent.pos = (x_pos, y_pos)
-#                sims[0].val('manualControl', 'PsiManual',heading_d)
-                sims[0].step(10)
+                Rl.agent.pos = (float(x_pos),float(y_pos)) #(list(x_pos)[1], list(y_pos)[0])
                 Rl.agent.checkPos()
-                sims[0].val('LOSGuidance', 'UpdateWaypoints',1)
-                sims[0].step(10)
-                sims[0].val('LOSGuidance', 'UpdateWaypoints',0)
-                sims[0].step(10)
+    #            Rl.update_Q(0.9,0.8)            
+    
+                reset('LOSGuidance','StateResetOn')
+                sims[0].val('LOSGuidance', 'iLosWaypointsX[0]',Rl.agent.nxtpos[1])
+                sims[0].val('LOSGuidance', 'iLosWaypointsY[0]',Rl.agent.nxtpos[0])
+                sims[0].val('LOSGuidance', 'iLosWaypointsX[1]',Rl.agent.fakepos[1])
+                sims[0].val('LOSGuidance', 'iLosWaypointsY[1]',Rl.agent.fakepos[0])
+    #            sims[0].val('LOSGuidance', 'UpdateWaypoints',1)
+    #            sims[0].val('LOSGuidance', 'UpdateWaypoints',0)
+    #            sims[0].step(10)
+    
+                sims[0].val('manualControl', 'UManual',0.3)
                 
-
-            number = number+1
-            print('number',number)
-            reset('LOSGuidance','StateResetOn')
-            print(Rl.agent.Q_table)
-
-        running = 0
+                while Rl.agent.nxtpos != Rl.agent.chosen_pos and Rl.agent.terminal == 0:
+                    Rl.agent.checkPos()
+                    if Rl.agent.onland == 1:
+                        print('LAND')
+                        sims[0].val('Hull', 'PosNED[0]', 1400.) #Y north
+                        sims[0].val('Hull', 'PosNED[1]', -1400.) #X east
+                        Rl.agent.chosen_pos = (start_pos)
+                        reset('Hull', 'StateResetOn')
+                        Rl.agent.terminal = 1
+                    else:
+                        Rl.agent.onland = sims[0].val('LandEstimation','OnLand')
+                        print('scenmanloop reward',Rl.agent.reward)
+                        print(Rl.agent.onland, sims[0].val('LandEstimation', 'OnLand'))
+                            
+                        x_pos = list(sims[0].val('Hull', 'Eta[1]'))[1]
+                        y_pos = list(sims[0].val('Hull', 'Eta[0]'))[0]
+                        Rl.agent.pos = (x_pos, y_pos)
+    #                    sims[0].val('manualControl', 'PsiManual',heading_d)
+                        sims[0].step(10)
+                        Rl.agent.checkPos()
+                        sims[0].val('LOSGuidance', 'UpdateWaypoints',1)
+                        sims[0].step(10)
+                        sims[0].val('LOSGuidance', 'UpdateWaypoints',0)
+                        sims[0].step(10)
+                        
+                
+                Rl.update_Q(0.9,0.8)
+                number = number+1
+                print('number',number)
+                reset('LOSGuidance','StateResetOn')
+                print(Rl.agent.Q_table)
+    
+            running = 0
         
         pickle.dump(Rl.agent.Q_table, open('progress.p', 'wb')) #dumping the Qtable variable
             # Frem til hit
