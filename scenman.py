@@ -184,12 +184,13 @@ if __name__ == "__main__":
 
     sim_ix = 0
     Rl.create_states()
-    
+    starty = 400. #-1400
+    startx = -1000. #1400
 
     reset('Hull', 'StateResetOn')
-    start_pos = (-1400.,1400.) #East(x) North(y)
-    sims[0].val('Hull', 'PosNED[0]', 1400.) #Y north
-    sims[0].val('Hull', 'PosNED[1]', -1400.) #X east
+    start_pos = (startx, starty) #East(x) North(y)
+    sims[0].val('Hull', 'PosNED[0]', starty) #Y north
+    sims[0].val('Hull', 'PosNED[1]', startx) #X east
     Rl.agent.chosen_pos = (start_pos)
     reset('Hull', 'StateResetOn')
 
@@ -215,6 +216,8 @@ if __name__ == "__main__":
             terminal = 0
             Rl.agent.terminal = 0
             Rl.agent.onland = sims[0].val('LandEstimation', 'OnLand')
+            sims[0].step(10)
+            print(Rl.agent.chosen_pos)
             while Rl.agent.terminal !=1:
     
                 Rl.bestVSrandom(0.1)
@@ -233,9 +236,9 @@ if __name__ == "__main__":
                     Rl.agent.checkPos()
                     if Rl.agent.onland == 1:
                         reset('Hull', 'StateResetOn')
-                        sims[0].val('Hull', 'PosNED[0]', 1400.) #Y north
-                        sims[0].val('Hull', 'PosNED[1]', -1400.) #X east
-                        Rl.agent.chosen_pos = (start_pos)
+                        sims[0].val('Hull', 'PosNED[0]', 1400)#starty) #Y north
+                        sims[0].val('Hull', 'PosNED[1]', -1400)#startx) #X east
+                        Rl.agent.chosen_pos = (-1400, 1400)
                         reset('Hull', 'StateResetOn')
                         Rl.agent.terminal = 1
                         terminalNumber += 1

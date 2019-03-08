@@ -38,7 +38,6 @@ class Agent():
 
     def get_reward(self):
         #Check where the vessel is and get the reward for that state
-        print('got reward', self.reward)
         if self.pos in goal.goal_states:
             self.terminal = 1
             self.reward = goal.goal_reward
@@ -48,6 +47,7 @@ class Agent():
             self.failures += 1
         else:
             self.reward = ocean.ocean_reward
+        print('got reward', self.reward)
 
     def north(self):
         #Enable agent to go forward
@@ -277,6 +277,7 @@ def bestVSrandom(epsilon):
     else:
         best_move()
         print('BEST!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+    print(agent.move)
 
 
 def update_Q(alpha, gamma):
