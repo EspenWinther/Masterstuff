@@ -33,7 +33,8 @@ class Agent():
         self.y_pos = 0
         self.number = 200 #changed from 50 #changed from 20
         self.R = 100
-        self.goalReached = 0
+        self.goalsScored = 0
+        self.failures = 0
 
     def get_reward(self):
         #Check where the vessel is and get the reward for that state
@@ -41,8 +42,10 @@ class Agent():
         if self.pos in goal.goal_states:
             self.terminal = 1
             self.reward = goal.goal_reward
+            self. goalsScored += 1
         elif self.terminal == 1:
             self.reward = neg_state.negativ_reward
+            self.failures += 1
         else:
             self.reward = ocean.ocean_reward
 
@@ -138,6 +141,8 @@ class Agent():
         self.Cirlce = (self.nxtpos[0] - self.pos[0])**2 + (self.nxtpos[1] - self.pos[1])**2
         if self.Cirlce <= self.R**2:
             self.chosen_pos = self.nxtpos
+        else:
+            return 0
 
 
 class Goal_state():
@@ -179,8 +184,6 @@ def create_states():
     step = agent.number # forandret fra 50   #forandret fra 20
     stepx = -1
     stepy = -1
-#    agent.Q_table[(0,0)] = [0.0]*agent.num_actions
-#    agent.Q_table[(agent.startpos)] = [0.0]*agent.num_actions
     minarea = -2400
     maxarea = 2000
     for x in range(minarea,maxarea):
@@ -270,8 +273,10 @@ def bestVSrandom(epsilon):
 #    move = 0
     if random.uniform(0, 1) <= epsilon or sum(agent.Q_table[agent.chosen_pos]) == 0 :
         random_move()
+        print('RANDOM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
     else:
         best_move()
+        print('BEST!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 
 
 def update_Q(alpha, gamma):

@@ -185,7 +185,6 @@ if __name__ == "__main__":
     sim_ix = 0
     Rl.create_states()
     
-    #print(Rl.agent.Q_table)
 
     reset('Hull', 'StateResetOn')
     start_pos = (-1400.,1400.) #East(x) North(y)
@@ -196,20 +195,13 @@ if __name__ == "__main__":
 
     sims[0].val('LOSGuidance', 'numWaypoints', 2.)
     sims[0].val('LOSGuidance', 'activateWaypoints', 1.)
-#    sims[0].val('LOSGuidance', 'distanceNewWaypoint', 10.)
-
     
     running = 1
-    num_episodes = 100
+    num_episodes = 10000
     
-#    dirX = [20,340,160]
-#    speedX = [5,5,5]
-    
-    # Set pid variabels 
-#    LOS.pid.setKd(100.)
-#    LOS.pid.setKi(0.)
-#    LOS.pid.setKp(400.)
+
     number = 0
+    terminalNumber = 0
     Rl.agent.onland = sims[0].val('LandEstimation', 'OnLand')
 
     
@@ -224,45 +216,35 @@ if __name__ == "__main__":
             Rl.agent.terminal = 0
             Rl.agent.onland = sims[0].val('LandEstimation', 'OnLand')
             while Rl.agent.terminal !=1:
-    #            Rl.update_Q(0.9,0.8)
+    
                 Rl.bestVSrandom(0.1)
-    #resets if hits land, but has same position as target. this must be fixed!!!!!!!!!!!!!!!!
+
                 print('FORLOOP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
                 x_pos = list(sims[0].val('Hull', 'Eta[1]'))[1]
                 y_pos = list(sims[0].val('Hull', 'Eta[0]'))[0]
                 Rl.agent.pos = (float(x_pos),float(y_pos)) #(list(x_pos)[1], list(y_pos)[0])
-                Rl.agent.checkPos()
-    #            Rl.update_Q(0.9,0.8)            
-    
                 reset('LOSGuidance','StateResetOn')
                 sims[0].val('LOSGuidance', 'iLosWaypointsX[0]',Rl.agent.nxtpos[1])
                 sims[0].val('LOSGuidance', 'iLosWaypointsY[0]',Rl.agent.nxtpos[0])
                 sims[0].val('LOSGuidance', 'iLosWaypointsX[1]',Rl.agent.fakepos[1])
                 sims[0].val('LOSGuidance', 'iLosWaypointsY[1]',Rl.agent.fakepos[0])
-    #            sims[0].val('LOSGuidance', 'UpdateWaypoints',1)
-    #            sims[0].val('LOSGuidance', 'UpdateWaypoints',0)
-    #            sims[0].step(10)
     
-                sims[0].val('manualControl', 'UManual',0.3)
-                
                 while Rl.agent.nxtpos != Rl.agent.chosen_pos and Rl.agent.terminal == 0:
                     Rl.agent.checkPos()
                     if Rl.agent.onland == 1:
-                        print('LAND')
+                        reset('Hull', 'StateResetOn')
                         sims[0].val('Hull', 'PosNED[0]', 1400.) #Y north
                         sims[0].val('Hull', 'PosNED[1]', -1400.) #X east
                         Rl.agent.chosen_pos = (start_pos)
                         reset('Hull', 'StateResetOn')
                         Rl.agent.terminal = 1
+                        terminalNumber += 1
                     else:
                         Rl.agent.onland = sims[0].val('LandEstimation','OnLand')
                         print('scenmanloop reward',Rl.agent.reward)
-                        print(Rl.agent.onland, sims[0].val('LandEstimation', 'OnLand'))
-                            
                         x_pos = list(sims[0].val('Hull', 'Eta[1]'))[1]
                         y_pos = list(sims[0].val('Hull', 'Eta[0]'))[0]
                         Rl.agent.pos = (x_pos, y_pos)
-    #                    sims[0].val('manualControl', 'PsiManual',heading_d)
                         sims[0].step(10)
                         Rl.agent.checkPos()
                         sims[0].val('LOSGuidance', 'UpdateWaypoints',1)
@@ -273,17 +255,26 @@ if __name__ == "__main__":
                 
                 Rl.update_Q(0.9,0.8)
                 number = number+1
-                print('number',number)
-                reset('LOSGuidance','StateResetOn')
-                print(Rl.agent.Q_table)
     
             running = 0
-        
+        print(Rl.agent.Q_table)
+        print('number',number)
+        print('terminalNumber', terminalNumber)
+        print('Goals', Rl.agent.goalsScored)
+        print('Failures', Rl.agent.failures)
         pickle.dump(Rl.agent.Q_table, open('progress.p', 'wb')) #dumping the Qtable variable
             # Frem til hit
+
+
+
         #pickleing
 #        pickle.dump(Qtable, open('progress.p', 'wb')) #dumping the Qtable variable
 #       Qtable = pickle.load(open('progress.p', 'rb') #loading the Qtable variable
+
+
+
+
+
 
 # Fra her
 
