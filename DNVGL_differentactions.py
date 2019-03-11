@@ -15,6 +15,7 @@ class Agent():
         self.goals = []
         self.movment_cost = -1
         self.action = [0,1,2,3]
+        self.move = 0
         self.num_actions = len(self.action)
         self.onland = 0#sm.sims[-1].val('LandEstimation','OnLand')
         self.terminal = 0
@@ -28,20 +29,27 @@ class Agent():
         self.model = []
         self.states = []
         self.potential_waypoints = []
+        self.possible_heading = []
+        
         self.x_pos = 0
         self.y_pos = 0
-        self.number = 200 #changed from 50 #changed from 20
+        self.number = 100 #changed from 50 #changed from 2
+        
         self.heading = 0
         self.heading_pos = 0
+        self.heading_d = 0
+        self.prev_ori = 0
         self. heading_state = []
+        self.headingStart = 0
+        
         self.R = 100
         self.speed = 0
         self.startpos = (-1400., 1400.)
-#    def get_nxtsat(self):
-#        for n in range(5):
-#            for m in range(5):
-#                self.nxtpossat.append((self.nxtpos[0]+n,self.nxtpos[1]+m))
-#                self.nxtpossat.append((self.nxtpos[0]-n,self.nxtpos[1]-m))
+        self.prevpos = 0
+        
+        self.chance = 0
+        self.posreached = 0
+
 
     def get_reward(self):
         #Check where the vessel is and get the reward for that state
@@ -59,64 +67,85 @@ class Agent():
     def turn_right(self):
         #make the agent turn right
         self.speed= 0.
-        self.heading_pos = self.heading + 0.174532925
-        self.get_reward()
+        if self.headingStart < 35:
+            self.heading_pos = self.possible_heading[self.headingStart +1]
+            self.headingStart += 1
+        elif self.heading_pos == self.possible_heading[35]:
+            self.heading_pos = self.heading_pos
+#        self.get_reward()
             
     def turn_left(self):
         #make agent turn left
         self.speed= 0.
-        self.heading_pos = self.heading - 0.174532925
-        self.get_reward()
+        if self.headingStart > 0:
+            self.heading_pos = self.possible_heading[self.headingStart -1]
+            self.headingStart -= 1
+        elif self.heading_pos == self.possible_heading[0]:
+            self.heading_pos = self.heading_pos
+            
+#        self.get_reward()
             
     def move_forward(self):
         #make agent move forward
         self.speed= 0.5
-        self.get_reward()
 
     def wait(self):
         #Enable agent to wait
         self.speed= 0.
-        self.get_reward()
-        
+        self.posreached = 1
 
 
     def checkPos(self):
+        self.prevpos = self.chosen_pos
         self.nxtpos = self.chosen_pos
+        self.dist = 50
         north = (self.chosen_pos[0], self.chosen_pos[1] + self.number)
         south = (self.chosen_pos[0], self.chosen_pos[1] - self.number)
         east = (self.chosen_pos[0] - self.number, self.chosen_pos[1])
         west = (self.chosen_pos[0] + self.number, self.chosen_pos[1])
-        nortwest = (self.chosen_pos[0] + self.number, self.chosen_pos[1] + self.number)
-        norteast = (self.chosen_pos[0] - self.number, self.chosen_pos[1] + self.number)
+        northwest = (self.chosen_pos[0] + self.number, self.chosen_pos[1] + self.number)
+        northeast = (self.chosen_pos[0] - self.number, self.chosen_pos[1] + self.number)
         southwest = (self.chosen_pos[0] + self.number, self.chosen_pos[1] - self.number)
         southeast = (self.chosen_pos[0] - self.number, self.chosen_pos[1] - self.number)
-        if self.pos[0] <= north - 100 and self.pos[0] > + 100 and self.pos[1] <= north - 100 and self.pos[1] > + 100:
+        print('north',north)
+        if -2000 < self.chosen_pos[0] > 2000 or -2000 < self.chosen_pos[1] > 2000:
+            self.terminal = 1
+        else:
+            self.terminal = 0
+            
+        if self.pos[0] >= north[0] - self.dist and self.pos[0] < north[0] + self.dist and self.pos[1] >= north[1] - self.dist and self.pos[1] < north[1] + self.dist:
             self.chosen_pos = north
-        elif self.pos[0] <= south - 100 and self.pos[0] > + 100 and self.pos[1] <= south - 100 and self.pos[1] > + 100:
+            self.posreached = 1
+        elif self.pos[0] >= south[0] - self.dist and self.pos[0] < south[0] + self.dist and self.pos[1] >= south[1] - self.dist and self.pos[1] < south[1] + self.dist:
             self.chosen_pos = south
-        elif self.pos[0] <= east - 100 and self.pos[0] > + 100 and self.pos[1] <= east - 100 and self.pos[1] > + 100:
+            self.posreached = 1
+        elif self.pos[0] >= east[0] - self.dist and self.pos[0] < east[0] + self.dist and self.pos[1] >= east[1] - self.dist and self.pos[1] < east[1] + self.dist:
             self.chosen_pos = east
-        elif self.pos[0] <= west - 100 and self.pos[0] > + 100 and self.pos[1] <= west - 100 and self.pos[1] > + 100:
+            self.posreached = 1
+        elif self.pos[0] >= west[0] - self.dist and self.pos[0] < west[0] + self.dist and self.pos[1] >= west[1] - self.dist and self.pos[1] < west[1] + self.dist:
             self.chosen_pos = west
-        elif self.pos[0] <= nortwest - 100 and self.pos[0] > + 100 and self.pos[1] <= nortwest - 100 and self.pos[1] > + 100:
-            self.chosen_pos = nortwest
-        elif self.pos[0] <= norteast - 100 and self.pos[0] > + 100 and self.pos[1] <= norteast - 100 and self.pos[1] > + 100:
-            self.chosen_pos = norteast
-        elif self.pos[0] <= southwest - 100 and self.pos[0] > + 100 and self.pos[1] <= southwest - 100 and self.pos[1] > + 100:
+            self.posreached = 1
+        elif self.pos[0] >= northwest[0] - self.dist and self.pos[0] < northwest[0] + self.dist and self.pos[1] >= northwest[1] - self.dist and self.pos[1] < northwest[1] + self.dist:
+            self.chosen_pos = northwest
+            self.posreached = 1
+        elif self.pos[0] >= northeast[0] - self.dist and self.pos[0] < northeast[0] + self.dist and self.pos[1] >= northeast[1] - self.dist and self.pos[1] < northeast[1] + self.dist:
+            self.chosen_pos = northeast
+            self.posreached = 1
+        elif self.pos[0] >= southwest[0] - self.dist and self.pos[0] < southwest[0] + self.dist and self.pos[1] >= southwest[1] - self.dist and self.pos[1]  < southwest[1] + self.dist:
             self.chosen_pos = southwest
-        elif self.pos[0] <= southeast - 100 and self.pos[0] > + 100 and self.pos[1] <= southeast - 100 and self.pos[1] > + 100:
+            self.posreached = 1
+        elif self.pos[0] >= southeast[0] - self.dist and self.pos[0] < southeast[0] + self.dist and self.pos[1] >= southeast[1] - self.dist and self.pos[1] < southeast[1] + self.dist:
             self.chosen_pos = southeast
+            self.posreached = 1
+        else:
+            self.posreached = 0
+
 
     
-    
-#    def checkPos(self):
-#        self.Cirlce = (self.nxtpos[0] - self.pos[0])**2 + (self.nxtpos[1] - self.pos[1])**2
-#        if self.Cirlce <= self.R**2:
-#            self.chosen_pos = self.nxtpos 
-        
     def checkHeading(self):
-        if self.heading - 5 < self.heading < self.heading + 5:
-            self.heading = self.heading_pos
+        self.prev_ori = self.heading_pos
+        if self.heading_pos - 0.2 < self.heading < self.heading_pos + 0.2:
+            self.heading_d = self.heading_pos
 
 
 class Goal_state():
@@ -154,20 +183,34 @@ danger = Danger_state()
 goal = Goal_state()
 
 
-def create_states():
-    headingstep = 0
-    heading_step = 10
-    for headings in range(360):
-        headingstep +=1
-        if headingstep == heading_step:
-            agent.heading_state.append(headings)
-            headingstep = 0
+#def create_states():
+#    headingstep = 0
+#    heading_step = 10
+#    for headings in range(360):
+#        headingstep +=1
+#        if headingstep == heading_step:
+#            agent.heading_state.append(round(headings,2))
+#            headingstep = 0
 
+def create_states():
+    print('CREATE STATES')
+    possible_heading = []
+    for headings in range(0, 360):
+        rads = headings*np.pi/180
+        possible_heading.append(round(rads,2))
+    print(len(possible_heading))
+    steph = 0
+    for headings in possible_heading:
+        steph +=1
+        if steph == 10:
+            steph = 0
+            agent.possible_heading.append(headings)
+            
+#    print('possible heading',possible_heading)
     step = agent.number # forandret fra 50   #forandret fra 20
-    stepx = 0
-    stepy = 0
-    agent.Q_table[(0,0)] = [0.0]*agent.num_actions
-    agent.Q_table[(agent.startpos)] = [0.0]*agent.num_actions
+    stepx = -1
+    stepy = -1
+#    steph = 9
     minarea = -2400
     maxarea = 2000
     for x in range(minarea,maxarea):
@@ -178,65 +221,68 @@ def create_states():
                 stepy +=1
                 if stepy == step:
                     stepy = 0
-                    for heading_pos in agent.heading_state:
-                        agent.Q_table[(float(x+step),float(y+step)),heading_pos] = [0.0]*agent.num_actions
-                        agent.potential_waypoints.append((x+step,y+step),heading_pos)
-
+                    for heading in agent.possible_heading:
+                        agent.Q_table[(float(x+step),float(y+step)), heading] = [0.0]*agent.num_actions
+                        agent.potential_waypoints.append(((x+step,y+step), heading))
+#                            print(heading)
+    print(len(agent.possible_heading))
+#    print(agent.Q_table)
                         
 
 def random_move():
-    chance = np.random.randint(0, 9)
+    chance = np.random.randint(0, 3)
     if chance == 0:
-        move = agent.action[0]
+        agent.move = agent.action[0]
         agent.turn_left()
     elif chance == 1:
-        move = agent.action[1]
+        agent.move = agent.action[1]
         agent.turn_right()
     elif chance == 2:
-        move = agent.action[2]
+        agent.move = agent.action[2]
         agent.move_forward()
     elif chance == 3:
-        move = agent.action[3]
+        agent.move = agent.action[3]
         agent.wait()
-    return move
+    agent.chance = chance
+#    return move
 
 
 
 def best_move():
     if agent.pos in agent.potential_waypoints:
-        if max(agent.Q_table[agent.chosen_pos]) == agent.Q_table[agent.chosen_pos][0]:
-            move = agent.action[0]
+        if max(agent.Q_table[agent.chosen_pos, agent.heading_pos]) == agent.Q_table[agent.chosen_pos, agent.heading_pos][0]:
+            agent.move = agent.action[0]
             agent.turn_right()
-        elif max(agent.Q_table[agent.chosen_pos]) == agent.Q_table[agent.chosen_pos][1]:
-            move = agent.action[1]
+        elif max(agent.Q_table[agent.chosen_pos, agent.heading_pos]) == agent.Q_table[agent.chosen_pos, agent.heading_pos][1]:
+            agent.move = agent.action[1]
             agent.turn_left()
-        elif max(agent.Q_table[agent.chosen_pos]) == agent.Q_table[agent.chosen_pos][2]:
-            move = agent.action[2]
+        elif max(agent.Q_table[agent.chosen_pos, agent.heading_pos]) == agent.Q_table[agent.chosen_pos, agent.heading_pos][2]:
+            agent.move = agent.action[2]
             agent.move_forward()
-        elif max(agent.Q_table[agent.chosen_pos]) == agent.Q_table[agent.chosen_pos][3]:
-            move = agent.action[3]
+        elif max(agent.Q_table[agent.chosen_pos, agent.heading_pos]) == agent.Q_table[agent.chosen_pos, agent.heading_pos][3]:
+            agent.move = agent.action[3]
             agent.wait()
-        return move
+#        return move
 
 
 def bestVSrandom(epsilon):
     #make the best move or a random move
-    if random.uniform(0, 1) <= epsilon or sum(agent.Q_table[agent.chosen_pos]) == 0 :
-        move = random_move()
+    if random.uniform(0, 1) <= epsilon or sum(agent.Q_table[agent.chosen_pos, agent.heading_pos]) == 0 :
+        random_move()
     else:
-        move = best_move()
-    return move
+        best_move()
+#    return move
 
 
 def update_Q(alpha, gamma):
-    prev_pos, prev_or, prew_reward = agent.chosen_pos, agent.ori, agent.reward
-    move = bestVSrandom(0.1)
-    agent.states.append(prev_pos)
+    prev_pos, prev_or= agent.prevpos, agent.prev_ori
+    agent.get_reward()
+    agent.states.append((prev_pos, prev_or))
     if agent.terminal == 1:
-        agent.Q_table[prev_pos][move] = (1 - alpha) * agent.Q_table[prev_pos][move] + alpha * agent.reward
+        agent.Q_table[prev_pos,prev_or][agent.move] = (1 - alpha) * agent.Q_table[prev_pos,prev_or][agent.move] + alpha * agent.reward
     else:
-        agent.Q_table[prev_pos][move] = (1 - alpha) * agent.Q_table[prev_pos][move] + alpha * (agent.reward + gamma * max(agent.Q_table[agent.chosen_pos]))
-    agent.model.append(((prev_pos), (agent.chosen_pos), move, agent.reward))
+        agent.Q_table[prev_pos,prev_or][agent.move] = (1 - alpha) * agent.Q_table[prev_pos,prev_or][agent.move] + alpha * (agent.reward + gamma * max(agent.Q_table[agent.chosen_pos, agent.heading_pos]))
+    agent.model.append(((prev_pos,prev_or), (agent.chosen_pos, agent.heading_pos), agent.move, agent.reward))
     # this part is the Dyna Q part
     if len(agent.model) >20:
         for number in range(100):
