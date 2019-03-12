@@ -97,7 +97,7 @@ class Agent():
 
     def checkPos(self):
         self.prevpos = self.chosen_pos
-        self.nxtpos = self.chosen_pos
+#        self.nxtpos = self.chosen_pos
         self.dist = 50
         north = (self.chosen_pos[0], self.chosen_pos[1] + self.number)
         south = (self.chosen_pos[0], self.chosen_pos[1] - self.number)
@@ -107,13 +107,14 @@ class Agent():
         northeast = (self.chosen_pos[0] - self.number, self.chosen_pos[1] + self.number)
         southwest = (self.chosen_pos[0] + self.number, self.chosen_pos[1] - self.number)
         southeast = (self.chosen_pos[0] - self.number, self.chosen_pos[1] - self.number)
-        print('north',north)
-        if -2000 < self.chosen_pos[0] > 2000 or -2000 < self.chosen_pos[1] > 2000:
+#        print('north',north)
+        if self.chosen_pos[0] <= -2000. or self.chosen_pos[0] >= 2000.:
             self.terminal = 1
-        else:
-            self.terminal = 0
-            
-        if self.pos[0] >= north[0] - self.dist and self.pos[0] < north[0] + self.dist and self.pos[1] >= north[1] - self.dist and self.pos[1] < north[1] + self.dist:
+            return 1
+        elif self.chosen_pos[1] <=-2000. or self.chosen_pos[1] >= 2000.:
+            self.terminal = 1
+            return 1
+        elif self.pos[0] >= north[0] - self.dist and self.pos[0] < north[0] + self.dist and self.pos[1] >= north[1] - self.dist and self.pos[1] < north[1] + self.dist:
             self.chosen_pos = north
             self.posreached = 1
         elif self.pos[0] >= south[0] - self.dist and self.pos[0] < south[0] + self.dist and self.pos[1] >= south[1] - self.dist and self.pos[1] < south[1] + self.dist:

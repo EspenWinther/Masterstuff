@@ -218,7 +218,6 @@ if __name__ == "__main__":
         for epsiodes in range(num_episodes):
 #            print(Rl.agent.Q_table)
             episodeEnd = 0
-            terminal = 0
             Rl.agent.terminal = 0
             Rl.agent.onland = sims[0].val('LandEstimation', 'OnLand')
             sims[0].step(10)
@@ -237,12 +236,8 @@ if __name__ == "__main__":
                 Rl.agent.heading = heading
                 Rl.agent.heading_d = 0
                 Rl.agent.posreached = 0
-#                reset('LOSGuidance','StateResetOn')
-#                sims[0].val('LOSGuidance', 'iLosWaypointsX[0]',Rl.agent.nxtpos[1])
-#                sims[0].val('LOSGuidance', 'iLosWaypointsY[0]',Rl.agent.nxtpos[0])
-#                sims[0].val('LOSGuidance', 'iLosWaypointsX[1]',Rl.agent.fakepos[1])
-#                sims[0].val('LOSGuidance', 'iLosWaypointsY[1]',Rl.agent.fakepos[0])
-#                Rl.agent.nxtpos = Rl.agent.chosen_pos
+                Rl.agent.nxtpos = Rl.agent.chosen_pos
+#                Rl.agent.move = 2
                 
 #                while Rl.agent.heading_d != Rl.agent.heading_pos and Rl.agent.terminal == 0 and Rl.agent.nxtpos == Rl.agent.chosen_pos:
                 print('top')
@@ -252,19 +247,6 @@ if __name__ == "__main__":
 #                print('chosen pos',Rl.agent.chosen_pos)
 #                print('nxt pos',Rl.agent.nxtpos)
 #                print('onland')
-                
-                if Rl.agent.onland == 1:
-                    print('onland!')
-                    reset('Hull', 'StateResetOn')
-                    sims[0].val('Hull', 'PosNED[0]', 1400)#starty) #Y north
-                    sims[0].val('Hull', 'PosNED[1]', -1400)#startx) #X east
-                    sims[0].val('Hull', 'ManualStateYaw', Rl.agent.possible_heading[0]) #X east
-                    Rl.agent.heading_pos = Rl.agent.possible_heading[0]
-                    Rl.agent.chosen_pos = (-1400, 1400)
-                    reset('Hull', 'StateResetOn')
-                    Rl.agent.terminal = 1
-                    terminalNumber += 1
-                    episodeEnd = 1
                     
                 if Rl.agent.move == 0:
                     while Rl.agent.heading_d != Rl.agent.heading_pos:
@@ -317,7 +299,26 @@ if __name__ == "__main__":
                         sims[0].step(10)
                         print('chosen pos',Rl.agent.chosen_pos)
                         print('nxt pos',Rl.agent.nxtpos)
-                        
+                        terminal = Rl.agent.checkPos()
+                        print('chosen0', Rl.agent.chosen_pos[0])
+                        print('chosen1', Rl.agent.chosen_pos[1])
+                        print('terminal', Rl.agent.terminal)
+                        print('return terminal', terminal)
+                        if Rl.agent.terminal == 1:
+                            print('terminal', Rl.agent.terminal)
+                            print('onland!')
+                            reset('Hull', 'StateResetOn')
+                            sims[0].val('Hull', 'PosNED[0]', 1400)#starty) #Y north
+                            sims[0].val('Hull', 'PosNED[1]', -1400)#startx) #X east
+                            sims[0].val('Hull', 'ManualStateYaw', Rl.agent.possible_heading[0]) #X east
+                            Rl.agent.heading_pos = Rl.agent.possible_heading[0]
+                            Rl.agent.chosen_pos = (-1400, 1400)
+                            reset('Hull', 'StateResetOn')
+#                            Rl.agent.terminal = 1
+                            terminalNumber += 1
+                            episodeEnd = 1
+                            break
+                    
                 elif Rl.agent.move == 3:
                     while Rl.agent.posreached == 0:
                         print('move',Rl.agent.move)
@@ -336,6 +337,8 @@ if __name__ == "__main__":
                         sims[0].val('manualControl', 'UManual', Rl.agent.speed)
                         sims[0].val('manualControl', 'PsiManual', Rl.agent.heading_pos)
                         sims[0].step(10)
+                    
+                
                     
                     
                 Rl.update_Q(0.9,0.8)
