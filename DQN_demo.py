@@ -35,12 +35,12 @@ state_size = 5 #env.observation_space.shape[0] #  will output 4, number of "info
 #print(state_size)
 action_size = 4 #env.action_space.n #  will output 4, number of possible actions
 #print(action_size)
-batch_size = 1000 #   can vary this by the power of two
+batch_size = 64 #   can vary this by the power of two
 
 n_episodes = 1000#  number of "games" we want the agent to play. more games = more data. randomly remember something from each episode as learning data
 
-output_dir = 'model_output/DQN_weights'
-output_model = 'mymodel.h5'
+output_dir = "Weights_save/DqnWeights" #model_output/DQN_weights'
+output_model = 'Model_mightWork.h5'
 
 
 if not os.path.exists(output_dir):
@@ -54,7 +54,7 @@ class DAgent:
         self.action_size = action_size
         self.state_size = state_size
         
-        self.memory = deque(maxlen = 2000) #    creating memory, drops oldest after 2000. Only 2000 newest are interesting
+        self.memory = deque(maxlen = 200000) #    creating memory, drops oldest after 2000. Only 2000 newest are interesting
 
         self.gamma = 0.96
         self.epsilon = 1.
@@ -67,7 +67,7 @@ class DAgent:
         
     def _build_model(self):
         model = Sequential()
-        model.add(Dense(600, input_dim= self.state_size, activation='relu')) # first layer. [24 neurons, input_size, ]
+        model.add(Dense(600, input_dim= self.state_size, activation='relu')) # first layer. [neurons, input_size, ]
         model.add(Dense(400, activation = 'relu'))
         model.add(Dense(300, activation = 'relu'))
         model.add(Dense(self.action_size, activation = 'softmax')) #change 'linear' to 'softmax'
@@ -84,7 +84,7 @@ class DAgent:
             return random.randrange(self.action_size)
         act_values = self.model.predict(state)
         return np.argmax (act_values[0])
-    
+
     
     def replay(self,batch_size):
         minibatch = random.sample(self.memory,batch_size)
@@ -93,9 +93,9 @@ class DAgent:
             target = reward #   if done = True
             if not done:
                 variable = self.model.predict(next_state)[0]
-                print(np.argmax(variable))
-                print(reward)
-                print(self.gamma)
+                #print(np.argmax(variable))
+                #print(reward)
+                #print(self.gamma)
                 target = reward + self.gamma*np.argmax(variable)
             target_f = self.model.predict(state)
             target_f[0][action] = target
@@ -106,17 +106,17 @@ class DAgent:
             self.epsilon * self.epsilon_decay
             
     def load(self, name):
-        self.model.load_weights(name)
+        load_weights(name)
 
-    def load_model(self, name):
-        self.model.load(name)
-    
+    def load_mod(self, name):
+        self.model = load_model(name)
+
     def save(self, name):
         self.model.save_weights(name)
 
     def save_model(self, name):
         self.model.save(name)
-       
+
 dagent = DAgent(state_size, action_size)
 
 '''
@@ -128,18 +128,18 @@ here is the real meat of the matter. this is how we use the functions created ab
 #for e in range(n_episodes):
 #    state = sc.env_reset() #     reset environment to the beginning. In my case, set to start pos and heading. The env_reset()
 #    state = np.reshape(state, [1, state_size]) #    transpose states so they fit with the network defined. transposing form row to collum
-#    
+#
 #    for time in range(5000): #   itterate over timesteps. is the pole alive in more then 5000 timesteps, it is complete. not valide for me
 ##        env.render() #  renders the game in action. also not needed
 #        action = agent.act(state) #     here we choose the next action to be taken.
 #        next_state, reward, done = sc.doAction(action) #    here is where the action is done. In my case: the simulator runs and we read off the next state when the action is complete
-#        
+#
 #        reward = reward if not done else -10 #  negative reward of we die. done = hitting land in my case.
-#        
+#
 #        next_state =np.reshape(next_state, [1, state_size])
-#        
+#
 #        agent.remember(state, action, reward, next_state, done)
-#        
+#
 #        state = next_state
 #        
 #        if done:

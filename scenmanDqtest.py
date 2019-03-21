@@ -12,9 +12,9 @@ if >1 simulators, threading should be used
 Running on GPU
 '''
 import os
-os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
-os.environ['CUDA_VISIBLE_DEVICES'] = ''
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+#os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
+#os.environ['CUDA_VISIBLE_DEVICES'] = ''
+#os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
 '''
 Script start
@@ -40,12 +40,12 @@ class Agent():
         self.heading = 0
         self.heading_d = 0
         self.heading_pos = 0
-        self.dist = 0
+        self.dist = 50
         self.goal = 0
         self.negativ_reward = 0
-        self.number = 10
+        self.number = 50
         self.onland = 0
-        self.goal_state = (0.,0.)
+        self.goal_state = (-500.,800.)
         self.possible_heading = []
         self.headingStart = 0
         self.num_actions = 4
@@ -55,7 +55,8 @@ class Agent():
 
     def get_reward(self):
         # Check where the vessel is and get the reward for that state
-        if self.pos in self.goal_state:
+        if self.chosen_pos == self.goal_state:
+            self.goal = 1
             return 10
         elif self.onland == 1:
             self.terminal = 1
@@ -106,10 +107,16 @@ class Agent():
         northeast = (self.chosen_pos[0] - self.number, self.chosen_pos[1] + self.number)
         southwest = (self.chosen_pos[0] + self.number, self.chosen_pos[1] - self.number)
         southeast = (self.chosen_pos[0] - self.number, self.chosen_pos[1] - self.number)
-        if self.chosen_pos[0] <= -2000. or self.chosen_pos[0] >= 2000.:
+        circle = (self.goal_state[0] - self.pos[0])**2 + (self.goal_state[1] - self.pos[1])**2
+        R = 300
+        if self.chosen_pos[0] <= -1800. or self.chosen_pos[0] >= 100.:
             self.onland = 1
-        elif self.chosen_pos[1] <= -2000. or self.chosen_pos[1] >= 2000.:
+        elif self.chosen_pos[1] <= -100. or self.chosen_pos[1] >= 1800.:
             self.onland = 1
+        # Adding increased goal target area for easy location
+        elif circle <= R**2:
+            self.chosen_pos = self.goal_state
+        #ends here. remove this, circle and R to go back
         elif self.pos[0] >= north[0] - self.dist and self.pos[0] < north[0] + self.dist and self.pos[1] >= north[1] - self.dist and self.pos[1] < north[1] + self.dist:
             self.chosen_pos = north
             self.posreached = 1
@@ -134,6 +141,7 @@ class Agent():
         elif self.pos[0] >= southeast[0] - self.dist and self.pos[0] < southeast[0] + self.dist and self.pos[1] >= southeast[1] - self.dist and self.pos[1] < southeast[1] + self.dist:
             self.chosen_pos = southeast
             self.posreached = 1
+        print(self.chosen_pos)
 
     def checkHeading(self):
         self.prev_ori = self.heading_pos
@@ -283,6 +291,7 @@ def doAction(action):
     vector, angle = calc_velvector()
     agent.nxtpos = agent.chosen_pos
     agent.onland = 0
+    done = 0
     if action == 0:
         agent.turn_left()
         while agent.heading_d != agent.heading_pos:
@@ -330,7 +339,13 @@ def doAction(action):
             agent.onland = sims[0].val('LandEstimation','OnLand')
             agent.checkPos()
             if agent.onland == 1:
+                done = agent.onland
                 break
+            elif agent.goal == 1:
+                done = agent.goal
+                break
+            else:
+                done = 0
             print('chosen pos 0', agent.chosen_pos[0], 'chosen pos 1', print('chosen pos 0', agent.chosen_pos[1]))
 
 
@@ -342,8 +357,8 @@ def doAction(action):
     reward = agent.get_reward()
     agent.onland = sims[0].val('LandEstimation','OnLand')
     agent.checkPos()
-    done = agent.onland
-    print('done', done)
+#    done = agent.onland
+ #   print('done', done)
     return next_state, reward, done
 
 create_states()
@@ -470,7 +485,8 @@ if __name__ == "__main__":
     This is where the magic happens!!!!!!
     '''
     #dq.dagent.load(dq.output_dir)
-    #dq.dagent.load_model(dq.output_dir)
+    dq.dagent.load_mod(dq.output_model)
+    plot_model(dq.output_dir, to_file='model.png')
     for e in range(dq.n_episodes):
         done = 0
         state = env_reset() #     reset environment to the beginning. In my case, set to start pos and heading. The env_reset()
@@ -497,7 +513,7 @@ if __name__ == "__main__":
                 dq.dagent.replay(dq.batch_size)
 
             if e % 50 == 0:
-                dq.dagent.save(dq.output_dir + 'weights_' + '{:04d})'.format(e) + 'hdf5')
+                #dq.dagent.save("C:/Users/Espen Eilertsen/Desktop/DRL-sim/Python/MineMaster/weighttestyo")
                 dq.dagent.save_model(dq.output_model)
 
 plot_model(dq.output_dir , to_file('model.png'))
