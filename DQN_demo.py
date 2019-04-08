@@ -5,15 +5,6 @@ Created on Sat Mar 16 20:21:08 2019
 @author: Espen Eilertsen
 """
 
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Mar 16 16:36:28 2019
-
-@author: Espen Eilertsen
-https://www.youtube.com/watch?v=OYhFoMySoVs
-based on kode by Keo Kim
-"""
-
 import random
 import numpy as np
 #import scenmanDqtest as sc
@@ -23,7 +14,7 @@ from collections import deque #  deque is a list that can be added to in boths e
 from keras.models import Sequential
 from keras.models import load_model
 from keras.models import save_model
-from keras.layers import Dense
+from keras.layers import Dense, Dropout
 from keras.optimizers import Adam
 import os
 
@@ -35,9 +26,9 @@ state_size = 5 #env.observation_space.shape[0] #  will output 4, number of "info
 #print(state_size)
 action_size = 4 #env.action_space.n #  will output 4, number of possible actions
 #print(action_size)
-batch_size = 64 #   can vary this by the power of two
+batch_size = 64 #   can vary this by the power of two should probably be 32. 
 
-n_episodes = 1000#  number of "games" we want the agent to play. more games = more data. randomly remember something from each episode as learning data
+n_episodes = 5000#  number of "games" we want the agent to play. more games = more data. randomly remember something from each episode as learning data
 
 output_dir = "Weights_save/DqnWeights" #model_output/DQN_weights'
 output_model = 'Model_mightWork.h5'
@@ -54,23 +45,34 @@ class DAgent:
         self.action_size = action_size
         self.state_size = state_size
         
-        self.memory = deque(maxlen = 200000) #    creating memory, drops oldest after 2000. Only 2000 newest are interesting
+        self.memory = deque(maxlen = 100000) #    creating memory, drops oldest after 2000. Only 2000 newest are interesting
 
-        self.gamma = 0.96
+        self.gamma = 0.99
         self.epsilon = 1.
-        self.epsilon_decay = 0.995
-        self.epsilon_min = 0.01
+        self.epsilon_decay = 0.00995
+        self.epsilon_min = 0.1
         
         self.learning_rate = 0.001
         self.model = self._build_model()
+        self.target_model = self._build_model()
+        self.stacked_states = deque([np.zeros((5), dtype=np.int) for i in range(4)], maxlen = 4)
+        self.taumax = 5
+        self.tau = 0
         
+        model_weights = self.model.get_weights()
+        self.target_model.set_weights(model_weights)
+
         
     def _build_model(self):
         model = Sequential()
-        model.add(Dense(600, input_dim= self.state_size, activation='relu')) # first layer. [neurons, input_size, ]
-        model.add(Dense(400, activation = 'relu'))
-        model.add(Dense(300, activation = 'relu'))
-        model.add(Dense(self.action_size, activation = 'softmax')) #change 'linear' to 'softmax'
+        model.add(Dense(100, input_dim= self.state_size, activation='tanh')) # first layer. [neurons, input_size,]
+        model.add(Dropout(0.25))
+        model.add(Dense(200, activation = 'tanh'))
+        model.add(Dropout(0.25))
+        model.add(Dense(200, activation = 'tanh'))
+        model.add(Dropout(0.25))
+        model.add(Dense(100, activation = 'tanh'))
+        model.add(Dense(self.action_size, activation = 'linear')) #
         model.compile(loss = 'mse', optimizer = Adam(lr = self.learning_rate))
 
         return model
@@ -80,33 +82,70 @@ class DAgent:
        self.memory.append((state, action, reward, next_state, done))
        
     def act(self,state):
+        print('Act')
         if np.random.rand() <= self.epsilon:
+            print('Random')
             return random.randrange(self.action_size)
         act_values = self.model.predict(state)
+        print(np.argmax (act_values[0]))
         return np.argmax (act_values[0])
-
     
-    def replay(self,batch_size):
-        minibatch = random.sample(self.memory,batch_size)
+    def stack_states(self, stacked_states, state, is_new_episode):  #not used yet
         
+        if is_new_episode:
+            stacked_states = deque([np.zeros((5), dtype=np.int) for i in range(4)], maxlen = 4)
+            
+            stacked_states.append(state)
+            stacked_states.append(state)
+            stacked_states.append(state)
+            stacked_states.append(state)
+            
+            stack = np.stack(stacked_states)
+            
+        else:
+            stacked_states.append(state)
+            stack = np.stack(stacked_states)
+            
+        return stack, stacked_states
+
+
+    def updateTarget(self):
+        if self.tau > self.taumax:
+            print('updated')
+            model_weights = self.model.get_weights()
+            self.target_model.set_weights(model_weights)
+            self.tau = 0
+            
+            
+    def replay(self,batch_size):
+        print('Replay')
+        self.tau += 1
+        minibatch = random.sample(self.memory,batch_size)
         for state, action, reward, next_state, done in minibatch:
             target = reward #   if done = True
-            if not done:
-                variable = self.model.predict(next_state)[0]
-                #print(np.argmax(variable))
-                #print(reward)
-                #print(self.gamma)
-                target = reward + self.gamma*np.argmax(variable)
-            target_f = self.model.predict(state)
-            target_f[0][action] = target
+            if done == 0:
+                # neural network estimates future reward based on next state
+                target = reward + self.gamma*np.argmax(self.target_model.predict(next_state)[0])   # Attemptinng Double Q network
+            target_f = self.model.predict(state) #predicted future reward based on current state
+#            print(target_f, 'target_f')
+            target_f[0][action] = target # mapping function
+#            print(target_f, 'mapped')
             
             self.model.fit(state, target_f, epochs = 1, verbose = 0)
         
         if self.epsilon > self.epsilon_min:
-            self.epsilon * self.epsilon_decay
+            self.epsilon = self.epsilon * self.epsilon_decay
             
+            # Attempting Fixed Q-target
+        if self.tau >= self.taumax:
+            model_weights = self.model.get_weights()
+            self.target_model.set_weights(model_weights)
+            self.tau = 0
+#        self.updateTarget()
+            
+        
     def load(self, name):
-        load_weights(name)
+        self.model.load_weights(name)
 
     def load_mod(self, name):
         self.model = load_model(name)
@@ -114,10 +153,11 @@ class DAgent:
     def save(self, name):
         self.model.save_weights(name)
 
-    def save_model(self, name):
+    def save_mod(self, name):
         self.model.save(name)
 
 dagent = DAgent(state_size, action_size)
+dtarget = DAgent(state_size, action_size) #not in use
 
 '''
 interact with environment

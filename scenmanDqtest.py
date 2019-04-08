@@ -6,15 +6,21 @@ reading the file parameters
 looping the scenario runs
 if >1 simulators, threading should be used
 
+import timeit
+
+start = timeit.timeit()
+##### kode som skal times ######
+end = timeit.timeit()
+print("Time: {}".format(end - start))
 """
 
 '''
 Running on GPU
 '''
 import os
-#os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
-#os.environ['CUDA_VISIBLE_DEVICES'] = ''
-#os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
+os.environ['CUDA_VISIBLE_DEVICES'] = ''
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
 '''
 Script start
@@ -29,11 +35,12 @@ import math as m
 import numpy as np
 import DQN_demo as dq
 from keras.utils import plot_model
+import pickle
+import timeit
 
 class Agent():
     def __init__(self):
         self.reward = 0
-        self.terminal = 0
         self.chosen_pos = []
         self.speed = 0
         self.pos = 0
@@ -52,18 +59,19 @@ class Agent():
         self.states = {}
         self.magnitudes = []
         self.nxtpos = (0.0,0.0)
+        self.success = 0
+        self.failure = 0
 
     def get_reward(self):
         # Check where the vessel is and get the reward for that state
-        if self.chosen_pos == self.goal_state:
-            self.goal = 1
-            return 10
+        if self.goal == 1:
+            self.success += 1
+            return 100
         elif self.onland == 1:
-            self.terminal = 1
-            return - 10
+            self.failure += 1
+            return -20
         else:
             self.reward = -1
-            self.terminal = 0
             return -1
 
     def turn_right(self):
@@ -73,7 +81,8 @@ class Agent():
             self.heading_pos = self.possible_heading[self.headingStart + 1]
             self.headingStart += 1
         elif self.heading_pos == self.possible_heading[35]:
-            self.heading_pos = self.heading_pos
+            self.headingStart = 0
+            self.heading_pos = self.possible_heading[self.headingStart]
 
 
 
@@ -84,7 +93,9 @@ class Agent():
             self.heading_pos = self.possible_heading[self.headingStart - 1]
             self.headingStart -= 1
         elif self.heading_pos == self.possible_heading[0]:
-            self.heading_pos = self.heading_pos
+            self.headingStart = 35
+            self.heading_pos = self.possible_heading[self.headingStart]
+            
 
 
     def forward(self):
@@ -96,8 +107,7 @@ class Agent():
         self.speed = 0.
 
     def checkPos(self):
-        self.prevpos = self.chosen_pos
-        #self.nxtpos = self.chosen_pos
+#        self.onland = 0
         self.dist = 50
         north = (self.chosen_pos[0], self.chosen_pos[1] + self.number)
         south = (self.chosen_pos[0], self.chosen_pos[1] - self.number)
@@ -108,40 +118,46 @@ class Agent():
         southwest = (self.chosen_pos[0] + self.number, self.chosen_pos[1] - self.number)
         southeast = (self.chosen_pos[0] - self.number, self.chosen_pos[1] - self.number)
         circle = (self.goal_state[0] - self.pos[0])**2 + (self.goal_state[1] - self.pos[1])**2
-        R = 300
-        if self.chosen_pos[0] <= -1800. or self.chosen_pos[0] >= 100.:
-            self.onland = 1
-        elif self.chosen_pos[1] <= -100. or self.chosen_pos[1] >= 1800.:
-            self.onland = 1
+        R = 500
         # Adding increased goal target area for easy location
-        elif circle <= R**2:
+        if circle <= R**2:
             self.chosen_pos = self.goal_state
+            self.goal = 1
         #ends here. remove this, circle and R to go back
         elif self.pos[0] >= north[0] - self.dist and self.pos[0] < north[0] + self.dist and self.pos[1] >= north[1] - self.dist and self.pos[1] < north[1] + self.dist:
             self.chosen_pos = north
-            self.posreached = 1
+#            self.onland = 0
         elif self.pos[0] >= south[0] - self.dist and self.pos[0] < south[0] + self.dist and self.pos[1] >= south[1] - self.dist and self.pos[1] < south[1] + self.dist:
             self.chosen_pos = south
-            self.posreached = 1
+#            self.onland = 0
         elif self.pos[0] >= east[0] - self.dist and self.pos[0] < east[0] + self.dist and self.pos[1] >= east[1] - self.dist and self.pos[1] < east[1] + self.dist:
             self.chosen_pos = east
-            self.posreached = 1
+#            self.onland = 0
         elif self.pos[0] >= west[0] - self.dist and self.pos[0] < west[0] + self.dist and self.pos[1] >= west[1] - self.dist and self.pos[1] < west[1] + self.dist:
             self.chosen_pos = west
-            self.posreached = 1
+#            self.onland = 0
         elif self.pos[0] >= northwest[0] - self.dist and self.pos[0] < northwest[0] + self.dist and self.pos[1] >= northwest[1] - self.dist and self.pos[1] < northwest[1] + self.dist:
             self.chosen_pos = northwest
-            self.posreached = 1
+#            self.onland = 0
         elif self.pos[0] >= northeast[0] - self.dist and self.pos[0] < northeast[0] + self.dist and self.pos[1] >= northeast[1] - self.dist and self.pos[1] < northeast[1] + self.dist:
             self.chosen_pos = northeast
-            self.posreached = 1
+#            self.onland = 0
         elif self.pos[0] >= southwest[0] - self.dist and self.pos[0] < southwest[0] + self.dist and self.pos[1] >= southwest[1] - self.dist and self.pos[1] < southwest[1] + self.dist:
             self.chosen_pos = southwest
-            self.posreached = 1
+#            self.onland = 0
         elif self.pos[0] >= southeast[0] - self.dist and self.pos[0] < southeast[0] + self.dist and self.pos[1] >= southeast[1] - self.dist and self.pos[1] < southeast[1] + self.dist:
             self.chosen_pos = southeast
-            self.posreached = 1
-        print(self.chosen_pos)
+            
+        if self.chosen_pos[0] <= -1600.:
+            self.onland = 1
+        elif self.chosen_pos[0] >= 100.:
+            self.onland = 1
+        elif self.chosen_pos[1] <= -100.:
+            self.onland = 1
+        elif self.chosen_pos[1] >= 1600.:
+            self.onland = 1
+#            self.onland = 0
+#        print(self.chosen_pos)
 
     def checkHeading(self):
         self.prev_ori = self.heading_pos
@@ -255,27 +271,33 @@ def reset(string1, string2):
     sims[0].step(50)
 
 def env_reset():
-    print('terminal', agent.terminal)
-    print('onland!')
+    print('Reset!', agent.onland, done, agent.goal)
+    agent.onland = 0
+    agent.done = 0
+    agent.goal = 0
+    agent.headingStart = random.randint(0,len(agent.possible_heading)-1)
+    print(agent.onland, agent.done, agent.goal)
     reset('Hull', 'StateResetOn')
     sims[0].val('Hull', 'PosNED[0]', 1400)  #starty) #Y north
     sims[0].val('Hull', 'PosNED[1]', -1400) #startx) #X east
-    sims[0].val('Hull', 'ManualStateYaw', agent.possible_heading[0]) #X east
+    sims[0].val('Hull', 'ManualStateYaw', agent.possible_heading[agent.headingStart]) #X east
     x_pos = list(sims[0].val('Hull', 'Eta[1]'))[1]
     y_pos = list(sims[0].val('Hull', 'Eta[0]'))[0]
     agent.pos = (x_pos, y_pos)
-    agent.heading_pos = agent.possible_heading[0]
+    agent.heading_pos = agent.possible_heading[agent.headingStart]
     agent.chosen_pos = (-1400, 1400)
-    agent.onland = 0
+
     reset('Hull', 'StateResetOn')
-    return [agent.chosen_pos[0], agent.chosen_pos[1], agent.heading_pos, 0., 0.]
+    print('success:', agent.success,'failure:', agent.failure)
+    state = buildState(0.,0.)
+    return state
 
 def calc_velvector():
     surge = sims[0].val('Hull', 'SurgeSpeed')
     sway = sims[0].val('Hull', 'SwaySpeed')
     vector = np.sqrt(surge**2 + sway**2)
     vectorSat = round(vector,1)
-    print(surge, sway)
+#    print(surge, sway)
     angle = np.arctan2(sway, surge)
     if angle < 0:
         angle += np.pi
@@ -286,21 +308,46 @@ def calc_velvector():
             
     return vectorSat, angleSat
 
+def mapStates(OldValue, OldMin, OldMax, NewMin, NewMax):
+    OldRange = (OldMax - OldMin)
+    NewRange = (NewMax - NewMin)
+    NewValue = (((OldValue - OldMin) * NewRange) / OldRange) + NewMin
+    return NewValue
+
+def buildState(vector, angle):
+    headingmax = len(agent.possible_heading)-1
+    x = mapStates(agent.chosen_pos[0], -1500, 100, -1, 1)
+    y = mapStates(agent.chosen_pos[1], -100, 1500, -1, 1)
+    heading = mapStates(agent.heading_pos,agent.possible_heading[0], agent.possible_heading[headingmax],-1,1)
+    vectormag = mapStates(vector,0,0.5,-1,1)
+    vectorangle = mapStates(angle,agent.possible_heading[0], agent.possible_heading[headingmax],-1,1 )
+    return [x,y,heading,vectormag,vectorangle]
 
 def doAction(action):
     vector, angle = calc_velvector()
     agent.nxtpos = agent.chosen_pos
-    agent.onland = 0
+#    agent.onland = 0
     done = 0
+    
     if action == 0:
         agent.turn_left()
+        sims[0].val('manualControl', 'UManual', agent.speed)
+        sims[0].val('manualControl', 'PsiManual', agent.heading_pos)
         while agent.heading_d != agent.heading_pos:
             agent.onland = sims[0].val('LandEstimation','OnLand')
+            agent.checkPos()
+            if agent.onland == 1:
+                done = 1
+                break
+            elif agent.goal == 1:
+                done = 1
+                break
+            else:
+                done = 0
             x_pos = list(sims[0].val('Hull', 'Eta[1]'))[1]
             y_pos = list(sims[0].val('Hull', 'Eta[0]'))[0]
             heading = list(sims[0].val('Hull', 'Eta[5]'))[5]
-            sims[0].val('manualControl', 'UManual', agent.speed)
-            sims[0].val('manualControl', 'PsiManual', agent.heading_pos)
+            
             agent.pos = (x_pos, y_pos)
             agent.heading = heading
             sims[0].step(10)
@@ -309,13 +356,23 @@ def doAction(action):
 
     elif action == 1:
         agent.turn_right()
+        sims[0].val('manualControl', 'UManual', agent.speed)
+        sims[0].val('manualControl', 'PsiManual', agent.heading_pos)
         while agent.heading_d != agent.heading_pos:
             agent.onland = sims[0].val('LandEstimation','OnLand')
+            agent.checkPos()
+            if agent.onland == 1:
+                done = 1
+                break
+            elif agent.goal == 1:
+                done = 1
+                break
+            else:
+                done = 0
             x_pos = list(sims[0].val('Hull', 'Eta[1]'))[1]
             y_pos = list(sims[0].val('Hull', 'Eta[0]'))[0]
             heading = list(sims[0].val('Hull', 'Eta[5]'))[5]
-            sims[0].val('manualControl', 'UManual', agent.speed)
-            sims[0].val('manualControl', 'PsiManual', agent.heading_pos)
+            
             agent.pos = (x_pos, y_pos)
             agent.heading = heading
             sims[0].step(10)
@@ -324,6 +381,8 @@ def doAction(action):
             
     elif action == 2:
         agent.forward()
+        sims[0].val('manualControl', 'UManual', agent.speed)
+        sims[0].val('manualControl', 'PsiManual', agent.heading_pos)
         while agent.chosen_pos == agent.nxtpos:
             vector, angle = calc_velvector()
             agent.onland = sims[0].val('LandEstimation','OnLand')
@@ -333,35 +392,33 @@ def doAction(action):
             agent.pos = (x_pos, y_pos)
             agent.heading = heading
             agent.checkPos()
-            sims[0].val('manualControl', 'UManual', agent.speed)
-            sims[0].val('manualControl', 'PsiManual', agent.heading_pos)
             sims[0].step(10)
             agent.onland = sims[0].val('LandEstimation','OnLand')
             agent.checkPos()
             if agent.onland == 1:
-                done = agent.onland
+                done = 1
                 break
             elif agent.goal == 1:
-                done = agent.goal
+                done = 1
                 break
             else:
                 done = 0
-            print('chosen pos 0', agent.chosen_pos[0], 'chosen pos 1', print('chosen pos 0', agent.chosen_pos[1]))
+        print('chosen pos 0!', agent.chosen_pos[0],'chosen pos 1!', agent.chosen_pos[1],'heading', agent.heading_pos,'Done', done)
 
 
     elif action == 3:
         next_state = agent.wait()
+        sims[0].step(10)
+        print('Wait')
 
-
-    next_state = [agent.chosen_pos[0], agent.chosen_pos[1], agent.heading_pos, vector, angle]
+    
+    next_state = buildState(vector, angle)
     reward = agent.get_reward()
-    agent.onland = sims[0].val('LandEstimation','OnLand')
     agent.checkPos()
-#    done = agent.onland
- #   print('done', done)
     return next_state, reward, done
 
 create_states()
+
 
 '''
 My stuff stops, main starts
@@ -484,39 +541,49 @@ if __name__ == "__main__":
     '''
     This is where the magic happens!!!!!!
     '''
-    #dq.dagent.load(dq.output_dir)
-    dq.dagent.load_mod(dq.output_model)
-    plot_model(dq.output_dir, to_file='model.png')
+#    dq.dagent.load("weights_+")
+
     for e in range(dq.n_episodes):
-        done = 0
         state = env_reset() #     reset environment to the beginning. In my case, set to start pos and heading. The env_reset()
+        done = 0
         state = np.reshape(state, [1, dq.state_size]) #    transpose states so they fit with the network defined. transposing form row to collum
+#        stacked_states = deque([np.reshape(state, [1, dq.state_size]) for i in range(4)], maxlen = 4)
+#        stack, stacked_state = dq.dagent.stacke_states(state, stacked_states, True)
         
+        agent.onland = sims[0].val('LandEstimation','OnLand')
+        
+        start = timeit.timeit()
+##### kode som skal times ######
+
         #for time in range(5000): #   itterate over timesteps. is the pole alive in more then 5000 timesteps, it is complete. not valide for me
         #        env.render() #  renders the game in action. also not needed
         while not done:
             action = dq.dagent.act(state) #     here we choose the next action to be taken.
+   
             next_state, reward, done = doAction(action) #    here is where the action is done. In my case: the simulator runs and we read off the next state when the action is complete
-
-            next_state =np.reshape(next_state, [1, dq.dagent.state_size])
-
+            
+            next_state = np.reshape(next_state, [1, dq.dagent.state_size])
+#            stack, stacked_state = dq.dagent.stacke_states(next_state, stacked_states, False)
+            
             dq.dagent.remember(state, action, reward, next_state, done)
 
             state = next_state
 
             if done:
-                print(e,dq.n_episodes,dq.dagent.epsilon)
-                env_reset()
+                print('done',e,dq.n_episodes,dq.dagent.epsilon)
                 break
 
-            if len(dq.dagent.memory) >dq.batch_size: #     Training agent theta(weights for network)
+            if len(dq.dagent.memory) >3000: # Training agent theta(weights for network)
                 dq.dagent.replay(dq.batch_size)
 
-            if e % 50 == 0:
-                #dq.dagent.save("C:/Users/Espen Eilertsen/Desktop/DRL-sim/Python/MineMaster/weighttestyo")
-                dq.dagent.save_model(dq.output_model)
+        if e % 50 == 0:
+            dq.dagent.save("weightspluss")
+            #dq.dagent.save_model(dq.output_model)
+            
+        pickle.dump(dq.dagent.memory, open('memroyPluss.p','wb'))
 
-plot_model(dq.output_dir , to_file('model.png'))
+        print('reward', reward)
+plot_model(dq.output_dir , to_file='model.png')
 
 #    while episode <= episodes:
 
