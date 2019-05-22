@@ -47,10 +47,39 @@ SCEN_PARA_FILE = "scenparafile.txt"
 # run or episode counter
 run_ix = 0
 
-output_dir = "convex_landNet/provenconv_network/funckyMoves"  # model_output/DQN_weights'
+#output_dir = "convex_landNet/provenconv_network/funckyMoves"  # model_output/DQN_weights'
+output_dir =  "convex_landNet/provenconv_network/differentMoves_5"
+output_dir2 =  "convex_landNet/provenconv_network/differentMoves_enemy"
 
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
+if not os.path.exists(output_dir2):
+    os.makedirs(output_dir2)
+
+class Enemy():
+    def __init__(self):
+        self.pos = [0,0]
+        self.move = 0
+        self.path = [(0,0), (50,0), (100,0),(150,0),(200,0),(250,0),(300,-50),(300,-100),(350,-150),(400,-150),(450,-150),(500,-150), (600,-150)]
+        sims[0].val('TargetShipModule', 'activateWaypoints', 0.)
+
+
+    def reset(self):
+        self.pos = self.path[0]
+        self.move = 0
+        sims[0].val('TargetShipModule', 'posNEDInit[0]', self.pos[0])
+        sims[0].val('TargetShipModule', 'posNEDInit[1]', self.pos[1])
+
+    def action(self):
+        if self.pos != self.path[len(self.path)-1]:
+            self.move += 1
+            self.pos = self.path[self.move]
+        else:
+            self.pos = self.path[len(self.path)-1]
+        sims[0].val('TargetShipModule', 'posNEDInit[0]', self.pos[0])
+        sims[0].val('TargetShipModule', 'posNEDInit[1]', self.pos[1])
+
+
 
 
 # makes a list of all possible combinations of the run parameter range values
@@ -166,6 +195,7 @@ if __name__ == "__main__":
         print('sim_ix')
     log("Connected to simulators and configuration loaded")
 
+    enemy = Enemy()
 
     def reset(string1, string2):
         sims[0].val(string1, string2, 1.)
@@ -194,6 +224,7 @@ if __name__ == "__main__":
         Rl.agent.goal = 0
         Rl.agent.heading = 0
         Rl.agent.moving = 0
+        enemy.reset()
         reset('Hull', 'StateResetOn')
         state = buildStatePath()
         # state = snap.grab_pic() #1200x800 frame
@@ -232,16 +263,18 @@ if __name__ == "__main__":
         goal_dist = np.sqrt(Rl.agent.chosen_pos[0] ** 2 + Rl.agent.chosen_pos[1] ** 2)
         max_dist = np.sqrt(maxx ** 2 + maxy ** 2)
         dist = mapStates(goal_dist, R, max_dist, 0, 5)
-        #trafficx = 0  # list(sims[0].val('TargetShipModule', 'PositionX[0]'))[1]
-        #trafficy = 0  # list(sims[0].val('TargetShipModule', 'PositionY[0]'))[1]
+        trafficx = enemy.pos[0]#list(sims[0].val('TargetShipModule', 'PositionX[0]'))[1]
+        trafficy = enemy.pos[1]#list(sims[0].val('TargetShipModule', 'PositionY[0]'))[1]
+        trafx = mapStates(trafficx, minx, maxx, 0, 5)  # chosen_pos[0], -1500, 100, -1, 1)
+        trafy = mapStates(trafficy, miny, maxy, 0, 5)
         myx = mapStates(myx, minx, maxx, 0, 5)  # chosen_pos[0], -1500, 100, -1, 1)
         myy = mapStates(myy, miny, maxy, 0, 5)  # chosen_pos[1], -100, 1500, -1, 1)
-        heading = mapStates(Rl.agent.heading, 0, 7, 0, 1)  # chosen_pos[0], -1500, 100, -1, 1)
-        moving = mapStates(Rl.agent.moving, 0, 1, 0, 1)  # chosen_pos[1], -100, 1500, -1, 1)
+        heading = mapStates(Rl.agent.heading, 0, 7, 0, 5)  # chosen_pos[0], -1500, 100, -1, 1)
+        moving = mapStates(Rl.agent.moving, 0, 1, 0, 5)  # chosen_pos[1], -100, 1500, -1, 1)
         pi = np.pi
         goal_angle = np.arctan2(Rl.agent.chosen_pos[0], Rl.agent.chosen_pos[1])
         angle = mapStates(goal_angle, -pi, pi, -1, 1)
-        state = [myx, myy, heading, moving, dist]
+        state = [myx, myy, heading, moving, dist, trafx, trafy]
         #for things in land_mass:
          #   things2 = np.sqrt((myx - things[0]) ** 2 + (myy - things[1]) ** 2)
           #  state.append(things2)
@@ -262,42 +295,46 @@ if __name__ == "__main__":
 
     def checkPos(e, transfer):
         # Rl.agent.chosen_pos = Rl.agent.nxtpos
-        circle = (Rl.agent.goal_state[0] - Rl.agent.chosen_pos[0]) ** 2 + (
-                    Rl.agent.goal_state[1] - Rl.agent.chosen_pos[1]) ** 2
+        circle = (Rl.agent.goal_state[0] - Rl.agent.chosen_pos[0])**2 + (Rl.agent.goal_state[1] - Rl.agent.chosen_pos[1])**2
+        traffic_circle = (enemy.pos[1] - Rl.agent.chosen_pos[0])**2 + (enemy.pos[0] - Rl.agent.chosen_pos[1])**2
+        print('traffic', traffic_circle, 'enemy position', enemy.pos)
         R = 120
+        r = 75
         if Rl.agent.onland == 0:
             Rl.agent.onland = sims[0].val('LandEstimation', 'OnLand')
         # Adding increased goal target area for easy location
-        if transfer == 1:
-            if Rl.agent.chosen_pos[1] > 500:  # 1550:
-                Rl.agent.onland = 1
-            elif Rl.agent.chosen_pos[1] < -50:  # -50:
-                Rl.agent.onland = 1
-            elif Rl.agent.chosen_pos[0] > 150:  # 50:
-                Rl.agent.onland = 1
-            elif Rl.agent.chosen_pos[0] < -300:  # -1550:
-                Rl.agent.onland = 1
-        else:
-            if Rl.agent.chosen_pos[1] > 300:  # 1550:
-                Rl.agent.onland = 1
-            elif Rl.agent.chosen_pos[1] < -50:  # -50:
-                Rl.agent.onland = 1
-            elif Rl.agent.chosen_pos[0] > 150:  # 50:
-                Rl.agent.onland = 1
-            elif Rl.agent.chosen_pos[0] < -100:  # -1550:
-                Rl.agent.onland = 1
+        #if transfer == 1:
+        if Rl.agent.chosen_pos[1] > 500:  # 1550:
+            Rl.agent.onland = 1
+        elif Rl.agent.chosen_pos[1] < -50:  # -50:
+            Rl.agent.onland = 1
+        elif Rl.agent.chosen_pos[0] > 150:  # 50:
+            Rl.agent.onland = 1
+        elif Rl.agent.chosen_pos[0] < -300:  # -1550:
+            Rl.agent.onland = 1
+        elif traffic_circle <= r**2:
+            Rl.agent.onland = 1
+            Rl.agent.crash += 1
+            done = True
+        #else:
+        #    if Rl.agent.chosen_pos[1] > 300:  # 1550:
+        #        Rl.agent.onland = 1
+        #    elif Rl.agent.chosen_pos[1] < -50:  # -50:
+        #        Rl.agent.onland = 1
+        #    elif Rl.agent.chosen_pos[0] > 150:  # 50:
+        #        Rl.agent.onland = 1
+        #    elif Rl.agent.chosen_pos[0] < -100:  # -1550:
+        #        Rl.agent.onland = 1
 
         if Rl.agent.onland == 1:
             done = True
             Rl.agent.consec_goals = 0
-        #elif Rl.agent.consec_goals >= 5:
-         #   done = 1
         elif circle <= R ** 2:
             Rl.agent.chosen_pos = Rl.agent.goal_state
             Rl.agent.goal = 1
             Rl.agent.consec_goals += 1
             done = False
-            if Rl.agent.consec_goals >= 10:
+            if Rl.agent.consec_goals >= 20:
                 done = True
         else:
             done = False
@@ -318,7 +355,7 @@ if __name__ == "__main__":
             return -1  # was -1
         elif Rl.agent.goal == 1:
             Rl.agent.success += 1
-            return 2  # was 2
+            return 2  # was 2ew
         else:
             Rl.agent.reward = 0
             return -0.001
@@ -346,12 +383,13 @@ if __name__ == "__main__":
         # y = [1350,1300,1250,1200,1150,1100,1050,1000,950,900,850,800,750,700,650]
         # x2 = [-300, -250, -200, -150, -100, -50, 0]
         # y2 = [600, 550, 500, 450, 400, 350, 300, 250, 200, 150, 100]
-        pos = [(400, -150), (300, -50), (200, -200), (300, -150), (300,0)]
+        #pos = [(400, -150), (300, -150), (200, -200)]
+        pos = [(400, -150), (200, -200), (300, -150)]
         pos1 = [(300,0), (300,-50), (200,50)]
         pos2 = [(400, -150), (200, -200), (300, -150)]
-        c_pos = pos1[random.randrange(len(pos1))]
+        c_pos = pos[random.randrange(len(pos))]
         if transfer ==1:
-            c_pos = pos2[random.randrange(len(pos2))]
+            c_pos = pos[random.randrange(len(pos))]
         x_pos, y_pos = c_pos[1], c_pos[0]
         # xout = random.choice(x2)
         # yout = random.choice(y2)
@@ -362,11 +400,12 @@ if __name__ == "__main__":
         if pos == (300,0):
             action = []
 
-    def plot_goals(inpt, goal, fail, string, fig):
+    def plot_goals(inpt, goal, fail, crash, string, fig):
         # plt.plot(input, agent.crash, 'b', label='Crash')
         plt.figure(fig)
         plt.plot(inpt, goal, 'g', label='Goals')
         plt.plot(inpt, fail, 'r', label='Fails')
+        plt.plot(inpt, crash, 'b', label='Crash')
         plt.legend(loc='upper left')
         plt.xlabel('Iterations')
         plt.ylabel('Fails/Goals/Crashes')
@@ -399,32 +438,37 @@ if __name__ == "__main__":
 
     iteration = []
     shape_state = [None, 100, 120, 1]
-    other_shape = [5]
+    other_shape = [7]
     seAgent = gm.DoubleDQNAgent(other_shape, 6)
+
+
     # dq.restore(dagent.sess, 'First_phase')
     # seAgent = tn.Agent(shape_state,8)
-    amount_states = 5#len(land_mass) + 3  # [100, 120, 1]
+    amount_states = 7#len(land_mass) + 3  # [100, 120, 1]
     ep_rewards = []
     run_rewards = []
     total_rewards = 0
     eps_rewards = 0
-    # for z in range(5000):
-    # print('While løkka')
+
     if THREADING:
         sim_semaphores[sim_ix].acquire()
         log("Locking sim" + str(sim_ix + 1) + "/" + str(NUM_SIMULATORS))
     #   state = [chosen_pos, heading, agent.moving, traffic]
+
     iteration = []
     p = 0
     fig = 1
     timeToSave = 0
     transfer = 0
-    # tf.train.Saver().restore(seAgent.sess, output_dir)
+    tf.train.Saver().restore(seAgent.sess, output_dir)
+    episode_num = 0
     for n in range(10):  # runs
-        iteration.clear()
-        Rl.agent.goals.clear()
-        Rl.agent.fails.clear()
+        #iteration.clear()
+        #Rl.agent.goals.clear()
+        #Rl.agent.fails.clear()
+        #Rl.agent.crashes.clear()
         for e in range(1000):  # episodes
+            episode_num += 1
             done = False
             total_reward = 0
             state = env_reset(transfer)  # reset environment to the beginning. In my case, set to start pos and heading. The env_reset()
@@ -437,6 +481,7 @@ if __name__ == "__main__":
                 action = seAgent.get_action(state)  # here we choose the next action to be taken.
                 invalid = Rl.doAction(action)
                 moveShip()
+                enemy.action()
                 done = checkPos(e, transfer)
                 reward = get_reward()
                 total_reward += reward
@@ -450,28 +495,29 @@ if __name__ == "__main__":
                 if Rl.agent.goal == 1:
                     state = env_reset(transfer)
                     state = np.reshape(state, amount_states)
-                    if Rl.agent.consec_goals >= 10:
+                    if Rl.agent.consec_goals >= 20:
                         transfer = 1
                 if done:
                     append_landmass()
                     print('done', e, n)
-                    iteration.append(e)
+                    iteration.append(episode_num)
                     Rl.agent.goals.append(Rl.agent.success)
                     Rl.agent.fails.append(Rl.agent.failure)
+                    Rl.agent.crashes.append(Rl.agent.crash)
                     # dagent.save("weights_pathonly_easy")
                     timeToSave+=1
-                    if timeToSave == 10:
-                        tf.train.Saver().save(seAgent.sess, output_dir)
+                    if timeToSave == 50:
+                        tf.train.Saver().save(seAgent.sess, output_dir2)
                         timeToSave = 0
 
                 print('total reward', total_reward)
             ep_rewards.append(total_reward)
         run_rewards.append(ep_rewards)
-        savegoals = "ninthFolder/goals_convextest_funckymove_0005_%i" % p
-        savescore = "ninthFolder/score_convextest_funckymove0005_%i" % p
+        savegoals = "tenthfolder/Goal_differentMove_enemy11%i" % p
+        savescore = "tenthfolder/Score_differentMove_enemy11%i" % p
         p += 1
         fig += 1
-        plot_goals(iteration, Rl.agent.goals, Rl.agent.fails, savegoals, fig)
+        plot_goals(iteration, Rl.agent.goals, Rl.agent.fails, Rl.agent.crashes, savegoals, fig)
 
         for n, ep_rewards in enumerate(run_rewards):
             x = range(len(ep_rewards))
